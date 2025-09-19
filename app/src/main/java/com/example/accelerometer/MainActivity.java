@@ -17,6 +17,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.accelerometer.mqtt.MqttClientWrapper;
 import com.example.accelerometer.mqtt.MqttEventListener;
 
+import java.util.Objects;
+
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
     private static final Long PUBLISH_DELAY_MS = 5000L;
 
@@ -26,30 +28,26 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             PUBLISH_DELAY_MS
     );
     private MqttClientWrapper client;
-    private TextView xVal, yVal, zVal;
+    private TextView luxValue;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        registerAccelerometer();
+        registerLightSensor();
         this.client = new MqttClientWrapper(
                 mqttEventListener,
                 this.getApplicationContext()
         );
 
         // Text View
-        xVal = findViewById(R.id.xValue);
-        yVal = findViewById(R.id.yVlaue);
-        zVal = findViewById(R.id.zValue);
+        luxValue = findViewById(R.id.luxValue);
     }
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        xVal.setText("X: " + event.values[0]);
-        yVal.setText("Y: " + event.values[1]);
-        zVal.setText("Z: " + event.values[2]);
+        luxValue.setText("Освещенность (LX): " + event.values[0]);
     }
 
     @Override
@@ -64,19 +62,21 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     public void publish() {
         SharedPreferences sharedPref = this.getSharedPreferences("MySharedPref", Context.MODE_PRIVATE);
         String mqttTopic = sharedPref.getString("Topic", "");
-        String message = xVal.getText().toString() + "," + yVal.getText().toString() + "," + zVal.getText().toString();
+        String message = "{\"result\":\"" + luxValue.getText().toString() + "\"}";
         client.publish(mqttTopic, message);
         Log.d("MainActivity", String.format("Published message: %s", message));
     }
 
-    public void registerAccelerometer() {
+    public void registerLightSensor() {
         SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 
-        // Accelerometer Sensor
-        Sensor accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        // Light or Proximity Sensor
+        Sensor lightSensor = Objects.requireNonNullElse(
+                sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT),
+                sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY));
 
         // Register Sensor Listener
-        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(this, lightSensor, SensorManager.SENSOR_DELAY_NORMAL);
     }
 
     public void stopPublish(View v) {
